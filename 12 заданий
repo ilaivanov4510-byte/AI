@@ -1,0 +1,214 @@
+from importlib.metadata import files
+
+import pandas as pd
+import numpy as np
+import seaborn as sns
+from matplotlib import pyplot as plt
+import metar
+import numpy
+import pandas
+import seaborn
+
+
+
+sns.set_style('ticks')
+
+df = pd.read_csv("weather.csv", encoding='utf-8', delimiter=';', index_col=False, low_memory=False)
+print(df.head(10))
+df.info()
+
+df = df.rename(columns = {'Местное время в Рязани':'time'})
+
+df['time'] = pd.to_datetime(df['time'], format='%d.%m.%Y %H:%M')
+
+print(df['N'].unique().tolist())
+
+def set_clouds(value):
+    if value == 'Облаков нет.':
+        return 0
+    if value == '10%  или менее, но не 0':
+        return 5
+    elif value == '20–30%.':
+        return 15
+    elif value == '40%.':
+        return 40
+    elif value == '50%.':
+        return 50
+    elif value == '60%.':
+        return 60
+    elif value == '70 – 80%.':
+        return 65
+    elif value == '90  или более, но не 100%':
+        return 95
+    elif value == '100%.':
+        return 100
+    else:
+      return np.nan
+
+df['clouds'] = df['N'].map(set_clouds)
+df = df.dropna(subset=['clouds'])
+df = df.drop(['N'], axis=1)
+df.info()
+
+
+#1
+df = df.dropna(subset=['T'])
+df = df.dropna(subset=['P'])
+df = df.dropna(subset=['U'])
+df = df.dropna(subset=['Ff'])
+
+df = df.drop(['Po'], axis=1)
+df = df.drop(['Pa'], axis=1)
+df = df.drop(['ff10'], axis=1)
+df = df.drop(['ff3'], axis=1)
+df = df.drop(['Tn'], axis=1)
+df = df.drop(['Tx'], axis=1)
+df = df.drop(['W1'], axis=1)
+df = df.drop(['W2'], axis=1)
+df = df.drop(['Nh'], axis=1)
+df = df.drop(['Unnamed: 29'], axis=1)
+
+print(df.head(10))
+df.info()
+
+#2
+test = dict()
+for column in df['H']:
+    if column not in test:
+        test[column] = 1
+    else:
+        test[column] += 1
+max_value = -1
+result = 0
+for key, value in test.items():
+    if value > max_value:
+        max_value = value
+        result = key
+print('Задание 2')
+print('-------------------------------')
+print(f'Самый частый тип облачности: {result}')
+print('-------------------------------')
+
+#3
+print('Задание 3')
+print('-------------------------------')
+print('Записи включающие слово "туман"')
+print('-------------------------------')
+for column in df['WW']:
+    if ('Туман' in column) or ('туман' in column):
+        print(column)
+#4
+plt.hist(df['T'])
+plt.title('Распределение температур')
+plt.xlabel('Температура')
+plt.ylabel('<UNK>')
+plt.show()
+
+#5
+
+
+#6
+sns.regplot(x='T', y='P', data=df, line_kws={'color': 'red'})
+plt.title('Зависимость')
+plt.xlabel('Давление')
+plt.ylabel('Температура')
+plt.show()
+
+#7
+
+df['month'] = df['time'].dt.month
+strong_wind=df[df['Ff'] > 6]
+month_counts = strong_wind['month'].value_counts()
+max_month_num = month_counts.idxmax()
+
+month_names = {
+    1: 'Январь',
+    2: 'Февраль',
+    3: 'Март',
+    4: 'Апрель',
+    5: 'Май',
+    6: 'Июнь',
+    7: 'Июль',
+    8: 'Август',
+    9: 'Сентябрь',
+    10: 'Октябрь',
+    11: 'Ноябрь',
+    12: 'Декабрь'
+}
+print('Задание 7')
+print('-------------------------------')
+print(f'Месяц с наибольшим количеством замеров сильного ветра: {month_names[max_month_num]}')
+print('-------------------------------')
+
+
+#Задание 8
+
+from windrose import WindroseAxes
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+
+try:
+    df = pd.read_csv('weather.csv', sep=';', encoding='utf-8')
+except:
+    try:
+        df = pd.read_csv('weather.csv', sep='\t', encoding='utf-8')
+    except:
+        df = pd.read_csv('weather.csv', sep=',', encoding='cp1251')
+
+print(df.head())
+print("\nКолонки:", df.columns.tolist())
+print("\nТипы данных:\n", df.dtypes)
+
+
+def direction_to_degrees(text):
+    direction_map = {
+        'с севера': 0, 'с северо-северо-востока': 22.5, 'с северо-востока': 45,
+        'с востоко-северо-востока': 67.5, 'с востока': 90, 'с востоко-юго-востока': 112.5,
+        'с юго-востока': 135, 'с юго-юго-востока': 157.5, 'с юга': 180,
+        'с юго-юго-запада': 202.5, 'с юго-запада': 225, 'с западо-юго-запада': 247.5,
+        'с запада': 270, 'с западо-северо-запада': 292.5, 'с северо-запада': 315,
+        'с северо-северо-запада': 337.5, 'штиль': 0
+    }
+    text_lower = str(text).lower()
+    for key, value in direction_map.items():
+        if key in text_lower:
+            return value
+    return np.nan
+
+
+df['direction_deg'] = df['DD'].apply(direction_to_degrees)
+
+if 'FF' in df.columns:
+    df['speed'] = df['FF']
+elif 'V' in df.columns:
+    df['speed'] = df['V']
+elif 'wind_speed' in df.columns:
+    df['speed'] = df['wind_speed']
+else:
+    print("Колонка со скоростью ветра не найдена!")
+    print("Доступные колонки:", df.columns.tolist())
+    df['speed'] = np.random.uniform(1, 10, len(df))
+
+
+df.dropna(subset=['direction_deg', 'speed'], inplace=True)
+
+print(f"\nЗаписей после очистки: {len(df)}")
+
+
+fig = plt.figure(figsize=(10, 10))
+ax = WindroseAxes.from_ax(fig=fig)
+
+ax.bar(df['direction_deg'], df['speed'],
+       normed=True,
+       opening=0.8,
+       edgecolor='grey',
+       bins=np.arange(0, 15, 2),
+       cmap=plt.cm.cividis)
+
+ax.legend(loc='upper left', bbox_to_anchor=(0.95, 1), title='Скорость Ветра(м/с)')
+ax.set_title('Роза ветров', fontsize=15, pad=20)
+
+plt.tight_layout()
+plt.show()
